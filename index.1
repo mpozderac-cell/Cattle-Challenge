@@ -1,125 +1,115 @@
-// Livestock Feed Ration Game (React + Tailwind + shadcn/ui)
-// This is a basic prototype. It includes farm naming, feed selection, growth simulation, and profit calculation.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Steer Builder Game</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 1em; }
+    input[type='number'] { width: 60px; }
+    .feed-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5em; }
+    .card { border: 1px solid #ccc; padding: 1em; border-radius: 8px; margin-bottom: 1em; }
+    .results { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🐮 Steer Builder: Feed to Finish</h1>
 
-import React, { useState } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+  <div class="card">
+    <label>Farm Name: <input id="farmName" /></label>
+  </div>
 
-const feedData = [
-  { name: 'Cracked Corn', cp: 9, tdn: 88, nem: 98, neg: 65, cost: 155 },
-  { name: 'Grass Hay', cp: 10, tdn: 58, nem: 58, neg: 26, cost: 75 },
-  { name: 'Soybean Meal', cp: 51, tdn: 80, nem: 88, neg: 59, cost: 300 },
-  { name: 'Beet Pulp', cp: 9, tdn: 76, nem: 81, neg: 52, cost: 250 },
-  { name: 'Whole Corn', cp: 9, tdn: 88, nem: 98, neg: 65, cost: 140 }
-];
+  <div class="card">
+    <h3>Build Your Ration (Must total 100%)</h3>
+    <div id="feedInputs"></div>
+  </div>
 
-const targetRequirements = [
-  { range: '400–600', cp: 15, tdn: 70, nem: 87, neg: 54 },
-  { range: '600–900', cp: 13, tdn: 72, nem: 91, neg: 57 },
-  { range: '900–1200', cp: 12, tdn: 74, nem: 94, neg: 60 }
-];
+  <button onclick="simulateGrowth()">Simulate Growth</button>
 
-export default function SteerRationGame() {
-  const [farmName, setFarmName] = useState('');
-  const [ration, setRation] = useState({});
-  const [results, setResults] = useState(null);
+  <div class="card results" id="results"></div>
 
-  const handleFeedChange = (feedName, percent) => {
-    setRation({ ...ration, [feedName]: parseFloat(percent) });
-  };
+  <script>
+    const feedData = [
+      { name: 'Cracked Corn', cp: 9, tdn: 88, nem: 98, neg: 65, cost: 155 },
+      { name: 'Grass Hay', cp: 10, tdn: 58, nem: 58, neg: 26, cost: 75 },
+      { name: 'Soybean Meal', cp: 51, tdn: 80, nem: 88, neg: 59, cost: 300 },
+      { name: 'Beet Pulp', cp: 9, tdn: 76, nem: 81, neg: 52, cost: 250 },
+      { name: 'Whole Corn', cp: 9, tdn: 88, nem: 98, neg: 65, cost: 140 }
+    ];
 
-  const simulateGrowth = () => {
-    let totalPercent = 0;
-    let cp = 0, tdn = 0, nem = 0, neg = 0, cost = 0;
+    const targetRequirements = [
+      { range: '400–600', cp: 15, tdn: 70, nem: 87, neg: 54 },
+      { range: '600–900', cp: 13, tdn: 72, nem: 91, neg: 57 },
+      { range: '900–1200', cp: 12, tdn: 74, nem: 94, neg: 60 }
+    ];
 
-    for (let feed of feedData) {
-      const pct = ration[feed.name] || 0;
-      totalPercent += pct;
-      cp += feed.cp * pct / 100;
-      tdn += feed.tdn * pct / 100;
-      nem += feed.nem * pct / 100;
-      neg += feed.neg * pct / 100;
-      cost += feed.cost * pct / 100 / 2000; // cost per lb
+    const feedInputsDiv = document.getElementById("feedInputs");
+    feedData.forEach(feed => {
+      const row = document.createElement("div");
+      row.className = "feed-row";
+      row.innerHTML = `
+        <label>${feed.name}</label>
+        <input type="number" min="0" max="100" id="${feed.name}" placeholder="%" />
+      `;
+      feedInputsDiv.appendChild(row);
+    });
+
+    function simulateGrowth() {
+      let cp = 0, tdn = 0, nem = 0, neg = 0, cost = 0, totalPercent = 0;
+      const ration = {};
+
+      feedData.forEach(feed => {
+        const value = parseFloat(document.getElementById(feed.name).value) || 0;
+        ration[feed.name] = value;
+        totalPercent += value;
+        cp += feed.cp * value / 100;
+        tdn += feed.tdn * value / 100;
+        nem += feed.nem * value / 100;
+        neg += feed.neg * value / 100;
+        cost += feed.cost * value / 100 / 2000; // cost per lb
+      });
+
+      if (Math.abs(totalPercent - 100) > 1) {
+        alert("Your total ration must equal 100%.");
+        return;
+      }
+
+      const calcADG = (target, actual) => {
+        const delta = Math.abs(actual - target);
+        if (delta <= 2) return 2.5;
+        if (delta <= 5) return 2.0;
+        if (delta <= 10) return 1.5;
+        return 1.0;
+      };
+
+      let totalDays = 0;
+      for (let phase of targetRequirements) {
+        const adg = Math.min(
+          calcADG(phase.cp, cp),
+          calcADG(phase.tdn, tdn),
+          calcADG(phase.nem, nem),
+          calcADG(phase.neg, neg)
+        );
+        const weightGain = phase.range === '400–600' ? 200 : 300;
+        totalDays += weightGain / adg;
+      }
+
+      const feedCost = totalDays * 20 * cost; // 20 lbs/day DMI
+      const revenue = 1200 * 1.85;
+      const profit = revenue - feedCost;
+
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = `
+        <p>Avg. CP: ${cp.toFixed(1)}%</p>
+        <p>Avg. TDN: ${tdn.toFixed(1)}%</p>
+        <p>Avg. NEm: ${nem.toFixed(1)}</p>
+        <p>Avg. NEg: ${neg.toFixed(1)}</p>
+        <p>Feed Cost / lb: $${cost.toFixed(3)}</p>
+        <p>Days to Finish: ${Math.round(totalDays)} days</p>
+        <p>Total Feed Cost: $${feedCost.toFixed(2)}</p>
+        <p>Final Profit: <span style="color: green;">$${profit.toFixed(2)}</span></p>
+      `;
     }
-
-    if (Math.abs(totalPercent - 100) > 1) {
-      alert("Your total ration must equal 100%.");
-      return;
-    }
-
-    const calcADG = (target, actual) => {
-      const delta = Math.abs(actual - target);
-      if (delta <= 2) return 2.5;
-      if (delta <= 5) return 2.0;
-      if (delta <= 10) return 1.5;
-      return 1.0;
-    };
-
-    let totalDays = 0;
-    for (let phase of targetRequirements) {
-      const adg = Math.min(
-        calcADG(phase.cp, cp),
-        calcADG(phase.tdn, tdn),
-        calcADG(phase.nem, nem),
-        calcADG(phase.neg, neg)
-      );
-      const weightGain = phase.range === '400–600' ? 200 : 300;
-      totalDays += weightGain / adg;
-    }
-
-    const feedCost = totalDays * 20 * cost; // 20 lbs/day DMI
-    const revenue = 1200 * 1.85;
-    const profit = revenue - feedCost;
-
-    setResults({ cp, tdn, nem, neg, cost, totalDays, feedCost, profit });
-  };
-
-  return (
-    <div className="p-4 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-center">🐮 Steer Builder: Feed to Finish</h1>
-      <Card>
-        <CardContent className="space-y-2 p-4">
-          <Label htmlFor="farmName">Farm Name</Label>
-          <Input id="farmName" value={farmName} onChange={(e) => setFarmName(e.target.value)} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 space-y-2">
-          <h2 className="text-xl font-semibold">Build Your Ration (Must total 100%)</h2>
-          {feedData.map(feed => (
-            <div key={feed.name} className="flex items-center justify-between gap-2">
-              <Label className="w-40">{feed.name}</Label>
-              <Input
-                type="number"
-                placeholder="%"
-                onChange={(e) => handleFeedChange(feed.name, e.target.value)}
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Button className="w-full" onClick={simulateGrowth}>Simulate Growth</Button>
-
-      {results && (
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <h2 className="text-xl font-bold">📊 Results for {farmName}</h2>
-            <p>Avg. CP: {results.cp.toFixed(1)}%</p>
-            <p>Avg. TDN: {results.tdn.toFixed(1)}%</p>
-            <p>Avg. NEm: {results.nem.toFixed(1)}</p>
-            <p>Avg. NEg: {results.neg.toFixed(1)}</p>
-            <p>Feed Cost / lb: ${results.cost.toFixed(3)}</p>
-            <p>Days to Finish: {Math.round(results.totalDays)} days</p>
-            <p>Total Feed Cost: ${results.feedCost.toFixed(2)}</p>
-            <p>Final Profit: <span className="font-bold text-green-600">${results.profit.toFixed(2)}</span></p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
+  </script>
+</body>
+</html>
